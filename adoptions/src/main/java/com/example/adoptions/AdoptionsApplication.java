@@ -56,7 +56,7 @@ class AdoptionsController {
     private final ChatClient ai;
 
     AdoptionsController(JdbcClient db,
-                        ChatClient.Builder ai,
+                        PromptChatMemoryAdvisor promptChatMemoryAdvisor ,    ChatClient.Builder ai,
                         DogRepository repository,
                         VectorStore vectorStore) {
 
@@ -80,7 +80,8 @@ class AdoptionsController {
                 don't have any dogs available.
                 """;
         this.ai = ai
-                .defaultAdvisors(new QuestionAnswerAdvisor( vectorStore))
+                .defaultAdvisors(promptChatMemoryAdvisor ,
+                        new QuestionAnswerAdvisor( vectorStore))
                 .defaultSystem(system)
                 .build();
     }

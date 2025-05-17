@@ -8,6 +8,7 @@ import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +29,11 @@ public class AdoptionsApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(AdoptionsApplication.class, args);
+    }
+
+    @Bean
+    ApplicationRunner aiRunner (ChatClient.Builder a) {
+        return args -> System.out.println(a .build().prompt().user("tell me a joke").call().content());
     }
 
     @Bean
@@ -55,7 +61,9 @@ class AdoptionsController {
     private final ChatClient ai;
 
     AdoptionsController(JdbcClient db,
-                        ChatClient.Builder ai, DogRepository repository, VectorStore vectorStore) {
+                        ChatClient.Builder ai,
+                        DogRepository repository,
+                        VectorStore vectorStore) {
 
         var count = db
                 .sql("select count(*) from vector_store")

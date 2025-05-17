@@ -32,11 +32,6 @@ public class AdoptionsApplication {
     }
 
     @Bean
-    ApplicationRunner aiRunner (ChatClient.Builder a) {
-        return args -> System.out.println(a .build().prompt().user("tell me a joke").call().content());
-    }
-
-    @Bean
     PromptChatMemoryAdvisor promptChatMemoryAdvisor(DataSource dataSource) {
         var jdbc = JdbcChatMemoryRepository
                 .builder()

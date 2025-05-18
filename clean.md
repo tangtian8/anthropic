@@ -9,13 +9,19 @@ AI is _amazing_, but it's not _perfect_. It has issues, as with all technologies
 
 ![the pains and patterns of AI](images/pp.png)
 
-Chat models are amenable to just about anything, and will follow you down just about any rabbit hole. If you want it to stay focused on a particular mission, give it a *system prompt*. 
+Chat models are amenable to just about anything, and will follow you down just about any rabbit hole. If you want it to stay focused on a particular mission, give it a **system prompt**. 
 
-Models are stateless. You might find that surprising if you've ever dealt with a model through  ChatGPT or Claude Desktop, because they submit a transcript of everything that's been said on each subsequent request. This transcript reminds the model what's been said. The transcript is *chat memory*.
+Models are stateless. You might find that surprising if you've ever dealt with a model through  ChatGPT or Claude Desktop, because they submit a transcript of everything that's been said on each subsequent request. This transcript reminds the model what's been said. The transcript is **chat memory**.
 
-Models live in an isolated sandbox. This makes sense! We've all seen the documentary called _The Terminator_ and know what can go wrong with unruly AI. But, they can do amazing things if you give them a bit of control, via *tool calling*.
+Models live in an isolated sandbox. This makes sense! We've all seen the documentary called _The Terminator_ and know what can go wrong with unruly AI. But, they can do amazing things if you give them a bit of control, via **tool calling**.
 
+Models are pretty darned smart, but they're not omniscient! You can give them data in the body of the request to help better inform their responses. This is called **prompt stuffing**. 
 
+But don't send _too much_ data! Instead, send only that which might be germaine to the query at hand. You can do this by chucking the data into a **vector store**, to support finding records that are similar to one another. Then, do **retrieval augmented generation (RAG)**, whereby you send the subselection of results from the vector store to the model for final analysis. 
+
+Chat models love to chat, even if they're wrong. This can sometimes produce interesting and incorrect results called _hallucinations_. Use **evaluators** to validate that the response is basically what you intended it to be.
+
+## One Small Step for Spring Developers, One Giant Leap for AI 
 
 Spring AI is a huge leap forward, but for Spring developers it'll feel like a  natural next step. It works like any Spring project. It has portable service abstractions allowing you to work consistently and conveniently with any of a number of models. It provides Spring Boot starters, configuration properties, and autoconfiguration. And, Spring AI carries Spring Boot's production-minded ethic forward, supporting vritual threads, GraalVM native images, and observability through Micrometer. It also offers a great developer experience, integrating Spring Boot's DevTools, and provides rich support for Docker Compose and Testcontainers. As with all Spring projects, you can get started on the [Spring Initializr](https://start.spring.io).
 
@@ -31,4 +37,6 @@ Make sure that in  your `pom.xml`, you've also got: `org.springframework.ai`:`sp
 
 Some of these things are familiar. `Data JDBC` just brings in Spring Data JDBC, which is just an ORM mapper that allows you to talk to a SQL database. `Web` brings in Spring MVC. `Actuator` brings in Spring Boot's observability stack, underpinned in part by [Micrometer](https://micrometer.io). `Devtools` is a development-time concern, allowing you to do live-reloads as you make changes. It'll automatically reload the code each time you do a "Save" operation in Visual Studio Code or Eclipse, and it'll automatically kick in each time you alt-tab away from IntelliJ IDEA. `GraalVM` brings in support for the OpenJDK fork, GraalVM, which provides among other things an ahead-of-time compiler (AOT) that produces lightweight, lighting fast binaries. 
 
-We said that Spring Data JDBC will make it easy to connect to a SQL database, but which one? In our application, we'll be using PostgreSQL, but not just vanilla PostgreSQL! We're going to load two very important extensions: `vector` and `postgresml`. The `vector` plugin allows PostgreSQL
+We said that Spring Data JDBC will make it easy to connect to a SQL database, but which one? In our application, we'll be using PostgreSQL, but not just vanilla PostgreSQL! We're going to load two very important extensions: `vector` and `postgresml`. The `vector` plugin allows PostgreSQL to act as a _vector store_. You'll need to turn arbitrary (text, image, audio) data into _embeddings_ before they can be persisted. For this, you'll need an embedding model. `PostgresML` provides that capability here. These concerns are usually orthaganol - it's just very convenient that PostgreSQL can do both chores. A big part of building a Spring AI application is deciding upon which vector store, embedding model, and chat model you will use.   
+
+`Claude` is, of course, the chat model we're going to be using today. To connect to it, you'll need an API key. You can secure one from [the Anthropic developer portal](https://www.anthropic.com/api). Claude is an awesome fit for most enterprise workloads. It is often more polite, stable, and conservative in uncertain or sensitive contexts. This makes it a great choice for enterprise applications. Claude's also very good at document comprehension and following multistep instructions.

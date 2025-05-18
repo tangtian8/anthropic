@@ -45,7 +45,7 @@
 - introduction to MCP. its actually an anthropic thing. nice! we love it so muhc we raced to crate a great jav sdk for it. if u use the java skd, u r using the spring ai created implementation.
 - lets extract that as a separate service called scheduler. it works! 
 - u know whats really awesome though? here,w ere using the chatclient and the chat client is talking to claude. but even though we created this app to use claude, it doesnt have to be claude that u use when u do this. this protocol is open. 
-- if, however, u r using claude desktop, then ur in luck.  u can reuse this whole thing as an mcp remote service _if_ u have the _MAX_ plan from Anthropic. it costs me $100 a month, but i find it well worth it because it brings the world of possibilities to my fingertips. 
+- if, however, u r using claude desktop, then ur in luck. you can reuse the same scheduling service directly from claude desktop too with the new support in their MAX plan for remote mcp services. heres how. 
 - lets extract this service out. its running on port :8080/sse. it has to be a public service. one handy trick to get a public URl for your app is to use `ngrok` which is a utility i pay like $8 a month for. use it  like this: `ngrok http 8080`. itll dump u out and give u a URL. go to your claude desktop settings, click on profile, rhn add a remote integration (show screenshots here). now you can run the entire process end-to-end - ask about neurotic dogs and then try to adopt them - from ur claude desktop chat.
 - production worthy Ai is key! 
 - graalvm 

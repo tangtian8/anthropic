@@ -1,0 +1,5 @@
+# Your First Spring AI 1.0 Application with Anthropic
+
+Hi, Spring fans! Spring AI is _live_ on the Spring Initializr and everywhere fine bytes might be had. Ask your doctor if AI is right for you! I, personally, think it's an amazing time to be a Java and Spring developer. There's never been a better time to be a Java and Spring developer, and this is doubly true in this unique AI moment. You see, 90% of what people talk about when they talk about AI engineering is just integration with models, most of which have HTTP APIs. And most of what these models take is just human-language `String`s. This is integration code, and what place for these integrations to exist than hanging off the side of your Spring-based workloads? The same workloads who business logic drives your organizations and which guard data that feeds your organization. 
+
+Spring AI is a huge leap forward. 

@@ -1,4 +1,4 @@
-# 2025-005-16-anthropic
+# 2025-05-16-anthropic
 
 
 - you first AI application with SPring Ai 1.0
@@ -35,4 +35,20 @@
 - its a good thing to keep an eye on the token costs. make sure youre keeping an eye on the actuator/metrics integration showing the gen_ai token count. 
 - the actuato rmetrics are poweted by micrometer. you can send to any timeseries db you want. 
 - so we dont want to blow through our token budget. one way to do that is to send only thrw requsts that might be germaine to the query at hand. well store the data in a *vector store*, which supports smenatic similarity search. in this case were using pgvector store b ut of course spring ai supports countless others. the problem is, you dont put raw data in a vector store. you put, well, _vectors_, sometimes called embeddings. somebody ahs to take raw data  - text, images, audio, whatever - and turn it into an embedding. well use an *embedding model* to do that. again, sprign ai supports countless options here, btu fro this demo well use `postgresml`. 
-- 
+- this will allow us to only select that which is germaine to the rquest ands end it. 
+- well need touse another advisor - `QuestionAnswerAdvisor`  - for this. 
+- CODE: shwo the vector store ingest loop and note that we wrapped it in a test so it doesn't executve over and over 
+- try it out: 'do you have any neurotic dogs?'
+- great. its owrking. and well,too. the natural next step would be to adopt this doggo. lets do so. we want the model to be able to interact with our proprietary scheduling algorithm. well build out a `Tool` which we can use here. 
+- demo: try it locally
+- this is all wel and good but of course well want to reuse this logic. 
+- introduction to MCP. its actually an anthropic thing. nice! we love it so muhc we raced to crate a great jav sdk for it. if u use the java skd, u r using the spring ai created implementation.
+- lets extract that as a separate service called scheduler. it works! 
+- u know whats really awesome though? here,w ere using the chatclient and the chat client is talking to claude. but even though we created this app to use claude, it doesnt have to be claude that u use when u do this. this protocol is open. 
+- if, however, u r using claude desktop, then ur in luck.  u can reuse this whole thing as an mcp remote service _if_ u have the _MAX_ plan from Anthropic. it costs me $100 a month, but i find it well worth it because it brings the world of possibilities to my fingertips. 
+- lets extract this service out. its running on port :8080/sse. it has to be a public service. one handy trick to get a public URl for your app is to use `ngrok` which is a utility i pay like $8 a month for. use it  like this: `ngrok http 8080`. itll dump u out and give u a URL. go to your claude desktop settings, click on profile, rhn add a remote integration (show screenshots here). now you can run the entire process end-to-end - ask about neurotic dogs and then try to adopt them - from ur claude desktop chat.
+- production worthy Ai is key! 
+- graalvm 
+- virtual threads 
+- a good, scalable platform like cloudfoundry or kubernetes. 
+

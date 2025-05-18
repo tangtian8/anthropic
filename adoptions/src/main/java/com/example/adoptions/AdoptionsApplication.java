@@ -1,5 +1,8 @@
 package com.example.adoptions;
 
+import io.modelcontextprotocol.client.McpClient;
+import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
@@ -7,8 +10,9 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.mcp.SyncMcpToolCallback;
+import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -47,6 +51,14 @@ public class AdoptionsApplication {
                 .builder(chatMessageWindow)
                 .build();
     }
+
+    @Bean
+    McpSyncClient mcpSyncClient() {
+        var mcp = McpClient
+                .sync(HttpClientSseClientTransport.builder("http://localhost:8081").build()).build();
+        mcp.initialize();
+        return mcp;
+    }
 }
 
 @Controller
@@ -56,7 +68,9 @@ class AdoptionsController {
     private final ChatClient ai;
 
     AdoptionsController(JdbcClient db,
-                        PromptChatMemoryAdvisor promptChatMemoryAdvisor ,    ChatClient.Builder ai,
+
+                        McpSyncClient mcpSyncClient,
+                        PromptChatMemoryAdvisor promptChatMemoryAdvisor, ChatClient.Builder ai,
                         DogRepository repository,
                         VectorStore vectorStore) {
 
@@ -80,8 +94,8 @@ class AdoptionsController {
                 don't have any dogs available.
                 """;
         this.ai = ai
-                .defaultAdvisors(promptChatMemoryAdvisor ,
-                        new QuestionAnswerAdvisor( vectorStore))
+                .defaultToolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClient))
+                .defaultAdvisors(promptChatMemoryAdvisor, new QuestionAnswerAdvisor(vectorStore))
                 .defaultSystem(system)
                 .build();
     }

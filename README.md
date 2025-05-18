@@ -1,11 +1,13 @@
 # 2025-05-16-anthropic
 
-
+<!--
 - you first AI application with SPring Ai 1.0
 - spring ai is ga! get the bits in the usual space: start.spring.io
 - we are in a unique space in the java community. 90% of what people talk about when they talk about Ai engineering is just integration with models, most of which have REST endpiints 
 - this is just integration and nothing does integration better than the java and spring communities. 
 - we build the apps whose logic drives the organizations and that guard the data that fuel the apps.
+-->
+
 - we are in an enviable position because the best place to introdued these new AI integrations is right here, in these spring-based systems and services. 
 - and spring ai is the easiest way to do that. 
 - in this article were going to look at the BRAND new Spring Ai 1.0 and look at how it delivers on some of the things you'll have come to expect from a Spring project, including Spring Boot starters, portable service abstractions, an elegant component model and Java DSL, gfood support for observability, production-worthiness, and more.

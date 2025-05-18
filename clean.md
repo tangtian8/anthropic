@@ -39,4 +39,34 @@ Some of these things are familiar. `Data JDBC` just brings in Spring Data JDBC, 
 
 We said that Spring Data JDBC will make it easy to connect to a SQL database, but which one? In our application, we'll be using PostgreSQL, but not just vanilla PostgreSQL! We're going to load two very important extensions: `vector` and `postgresml`. The `vector` plugin allows PostgreSQL to act as a _vector store_. You'll need to turn arbitrary (text, image, audio) data into _embeddings_ before they can be persisted. For this, you'll need an embedding model. `PostgresML` provides that capability here. These concerns are usually orthaganol - it's just very convenient that PostgreSQL can do both chores. A big part of building a Spring AI application is deciding upon which vector store, embedding model, and chat model you will use.   
 
-`Claude` is, of course, the chat model we're going to be using today. To connect to it, you'll need an API key. You can secure one from [the Anthropic developer portal](https://www.anthropic.com/api). Claude is an awesome fit for most enterprise workloads. It is often more polite, stable, and conservative in uncertain or sensitive contexts. This makes it a great choice for enterprise applications. Claude's also very good at document comprehension and following multistep instructions.
+`Claude` is, of course, the chat model we're going to be using today. To connect to it, you'll need an API key. You can secure one from [the Anthropic developer portal](https://www.anthropic.com/api). Claude is an awesome fit for most enterprise workloads. It is often more polite, stable, and conservative in uncertain or sensitive contexts. This makes it a great choice for enterprise applications. Claude's also great at document comprehension and at following multistep instructions.
+
+## The Database 
+
+As I said before, we're going to use PostgreSQL. It's not too difficult to get a Docker image working that supports both `vector` and `postgresml`. I've included a file, `adoptions/db/run.sh`. Run that. It'll launch a Docker image. You'll then need to initialize it with an application user. Run `adoptions/db/init.sh`.
+
+Now you're all set. 
+
+Specify your everything to do with your database connectivity in `application.properties`:
+
+```properties
+spring.sql.init.mode=always
+#
+spring.datasource.url=jdbc:postgresql://localhost:5433/postgresml
+spring.datasource.username=myappuser
+spring.datasource.password=mypassword
+#
+spring.ai.postgresml.embedding.create-extension=true
+spring.ai.postgresml.embedding.options.vector-type=pg_vector
+#
+spring.ai.vectorstore.pgvector.dimensions=768
+spring.ai.vectorstore.pgvector.initialize-schema=true
+
+```
+
+Here we're specifying what kind of vector we want, whether we want Spring AI to initialize the `PostgresML` extension. We're specifying what dimensions we want for vectors stored in PostgreSQL, and whether we want Spring AI to initialize the schema required to use it as a vector store. 
+
+We also want to install some data (the dogs!) into the database, so we'll tell Spring Boot to run  `schema.sql` and `data.sql` which creates a table and installs data in the database, respectively.
+
+## The Assistant 
+

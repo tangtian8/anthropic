@@ -70,7 +70,8 @@ class AdoptionsController {
     AdoptionsController(JdbcClient db,
 
                         McpSyncClient mcpSyncClient,
-                        PromptChatMemoryAdvisor promptChatMemoryAdvisor, ChatClient.Builder ai,
+                        PromptChatMemoryAdvisor promptChatMemoryAdvisor,
+                        ChatClient.Builder ai,
                         DogRepository repository,
                         VectorStore vectorStore) {
 
@@ -87,11 +88,7 @@ class AdoptionsController {
             });
         }
         var system = """
-                You are an AI powered assistant to help people adopt a dog from the adoption\s
-                agency named Pooch Palace with locations in Antwerp, Seoul, Tokyo, Singapore, Paris,\s
-                Mumbai, New Delhi, Barcelona, San Francisco, and London. Information about the dogs available\s
-                will be presented below. If there is no information, then return a polite response suggesting we\s
-                don't have any dogs available.
+                You are an AI powered assistant to help people adopt a dog from the adoption agency named Pooch Palace with locations in Rio de Janeiro, Mexico City, Seoul, Tokyo, Singapore, Paris, Mumbai, New Delhi, Barcelona, London, and San Francisco. Information about the dogs available will be presented below. If there is no information, then return a polite response suggesting we don't have any dogs available.
                 """;
         this.ai = ai
                 .defaultToolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClient))

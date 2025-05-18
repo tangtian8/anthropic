@@ -31,13 +31,13 @@ And that's just what we're going to do! We're going to build an application to s
 "Ok, I’ve tried. I’ve tried for the last several months to post this dog for adoption and make him sound...palatable. The problem is, he’s just not. There’s not a very big market for neurotic, man-hating, animal-hating, children-hating dogs that look like gremlins. But I have to believe there’s someone out there for Prancer, because I am tired and so is my family. Every day we live in the grips of the demonic Chihuahua hellscape he has created in our home."
 
 ## The Pre-requisites
-Sounds like quite a handful! But even spicy dogs deserve loving homes. So let's build a service to unite people with the dogs of their dreams (or nightmares?) Hit the Spring Initializr and add the following dependencies to your project: `PgVector`, `GraalVM`, `Actuator`, `Data JDBC`, `JDBC Chat Memory`, `PostgresML`, `Devtools`, and `Web`. Choose Java 24 (or later) and Apache Maven as the build tool. (Strictly speaking, there's no reason you could not use Gradle here, but the example will be in terms of Apache Maven) 
+Sounds like quite a handful! But even spicy dogs deserve loving homes. So let's build a service to unite people with the dogs of their dreams (or nightmares?) Hit the [Spring Initializr](https://start.spring.io) and add the following dependencies to your project: `PgVector`, `GraalVM`, `Actuator`, `Data JDBC`, `JDBC Chat Memory`, `PostgresML`, `Devtools`, and `Web`. Choose Java 24 (or later) and Apache Maven as the build tool. (Strictly speaking, there's no reason you could not use Gradle here, but the example will be in terms of Apache Maven) Make sure the artifact is named `adoptions`.
 
 Make sure that in  your `pom.xml`, you've also got: `org.springframework.ai`:`spring-ai-advisors-vector-store`.
 
-Some of these things are familiar. `Data JDBC` just brings in Spring Data JDBC, which is just an ORM mapper that allows you to talk to a SQL database. `Web` brings in Spring MVC. `Actuator` brings in Spring Boot's observability stack, underpinned in part by [Micrometer](https://micrometer.io). `Devtools` is a development-time concern, allowing you to do live-reloads as you make changes. It'll automatically reload the code each time you do a "Save" operation in Visual Studio Code or Eclipse, and it'll automatically kick in each time you alt-tab away from IntelliJ IDEA. `GraalVM` brings in support for the OpenJDK fork, GraalVM, which provides among other things an ahead-of-time compiler (AOT) that produces lightweight, lighting fast binaries. 
+Some of these things are familiar. `Data JDBC` just brings in Spring Data JDBC, which is just an ORM mapper that allows you to talk to a SQL database. `Web` brings in Spring MVC. `Actuator` brings in Spring Boot's observability stack, underpinned in part by [Micrometer](https://micrometer.io). `Devtools` is a development-time concern, allowing you to do live-reloads as you make changes. It'll automatically reload the code each time you do a "Save" operation in Visual Studio Code or Eclipse, and it'll automatically kick in each time you alt-tab away from IntelliJ IDEA. `GraalVM` brings in support for the OpenJDK fork, GraalVM, which provides, among other things, an ahead-of-time compiler (AOT) that produces lightweight, lighting fast binaries. 
 
-We said that Spring Data JDBC will make it easy to connect to a SQL database, but which one? In our application, we'll be using PostgreSQL, but not just vanilla PostgreSQL! We're going to load two very important extensions: `vector` and `postgresml`. The `vector` plugin allows PostgreSQL to act as a _vector store_. You'll need to turn arbitrary (text, image, audio) data into _embeddings_ before they can be persisted. For this, you'll need an embedding model. `PostgresML` provides that capability here. These concerns are usually orthaganol - it's just very convenient that PostgreSQL can do both chores. A big part of building a Spring AI application is deciding upon which vector store, embedding model, and chat model you will use.   
+We said that Spring Data JDBC will make it easy to connect to a SQL database, but which one? In our application, we'll be using PostgreSQL, but not just vanilla PostgresSQL! We're going to load two very important extensions: `vector` and `postgresml`. The `vector` plugin allows PostgresSQL to act as a _vector store_. You'll need to turn arbitrary (text, image, audio) data into _embeddings_ before they can be persisted. For this, you'll need an embedding model. `PostgresML` provides that capability here. These concerns are usually orthaganol—it's just very convenient that PostgreSQL can do both chores. A big part of building a Spring AI application is deciding upon which vector store, embedding model, and chat model you will use.   
 
 `Claude` is, of course, the chat model we're going to be using today. To connect to it, you'll need an API key. You can secure one from [the Anthropic developer portal](https://www.anthropic.com/api). Claude is an awesome fit for most enterprise workloads. It is often more polite, stable, and conservative in uncertain or sensitive contexts. This makes it a great choice for enterprise applications. Claude's also great at document comprehension and at following multistep instructions.
 
@@ -61,12 +61,190 @@ spring.ai.postgresml.embedding.options.vector-type=pg_vector
 #
 spring.ai.vectorstore.pgvector.dimensions=768
 spring.ai.vectorstore.pgvector.initialize-schema=true
-
+#
+spring.ai.chat.memory.repository.jdbc.initialize-schema=always
 ```
 
 Here we're specifying what kind of vector we want, whether we want Spring AI to initialize the `PostgresML` extension. We're specifying what dimensions we want for vectors stored in PostgreSQL, and whether we want Spring AI to initialize the schema required to use it as a vector store. 
 
-We also want to install some data (the dogs!) into the database, so we'll tell Spring Boot to run  `schema.sql` and `data.sql` which creates a table and installs data in the database, respectively.
+We also want to install some data (the dogs!) into the database, so we'll tell Spring Boot to run `schema.sql` and `data.sql` which creates a table and installs data in the database, respectively.
+
+We'll need to talk to the just-created `dog` table, so we've got a Spring Data JDBC entity and repository. Add the following types to the bottom of `AdoptionsApplication.java`, after the last `}`.
+
+```java
+
+interface DogRepository extends ListCrudRepository<Dog, Integer> {
+}
+
+record Dog(@Id int id, String name, String owner, String description {
+}
+
+```
 
 ## The Assistant 
+
+We're going to field questions from users via our HTTP controller. Here's the skeleton definition:
+
+```java
+
+
+@Controller
+@ResponseBody
+class AdoptionsController {
+
+    private final ChatClient ai;
+
+    AdoptionsController (ChatClient.Builder ai  ) {
+        this.ai = ai.build();
+    }
+
+    @GetMapping("/{user}/assistant")
+    String inquire(@PathVariable String user, @RequestParam String question) {
+        return ai
+                .prompt()
+                .user(question)
+                .call()
+                .content();
+    }
+}
+
+```
+
+So, basically, we can ask questions by making HTTP requests to `:8080/youruser/assistant`. Try it out.
+
+```
+http :8080/jlong/assistant question=="my name is Josh" 
+```
+
+You shoudl get an effusive response. We're friends, it sounds like! Let's put that friendship to the test.
+
+
+```
+http :8080/jlong/assistant question=="what's my name?" 
+```
+
+In my run, I was disappointed to learn that Claude had already forgotten about me. It has no memory of me whatsoever! Let's give our model some memory. We'll do this with an advisor, which pre- and post-processes requests to the model, called `PromptChatMemoryAdvisor`. Add its definition to the `AdoptionsApplication`.
+
+```java
+    @Bean
+    PromptChatMemoryAdvisor promptChatMemoryAdvisor(DataSource dataSource) {
+        var jdbc = JdbcChatMemoryRepository
+                .builder()
+                .dataSource(dataSource)
+                .build();
+
+        var chatMessageWindow = MessageWindowChatMemory
+                .builder()
+                .chatMemoryRepository(jdbc)
+                .build();
+
+        return PromptChatMemoryAdvisor
+                .builder(chatMessageWindow)
+                .build();
+    }
+```
+
+Advisors are like filters or interceptors. They're a great way to add to the body of a request or handle the response in a generic, cross-cutting kind of way. Sort of like Spring's aspect-oriented programming support. 
+
+This advisor will persist the messages for you. In this instance, it'll persist it to our PostgreSQL database, using schema we've already told Spring AI to initialize (`spring.ai.chat.memory.repository.jdbc.initialize-schema=always`). 
+
+Change the configuration for the `ChatClient`:
+
+```java
+    // ..
+    AdoptionsController (PromptChatMemoryAdvisor promptChatMemoryAdvisor,
+                         ChatClient.Builder ai  ) {
+        this.ai = ai
+                .defaultAdvisors(promptChatMemoryAdvisor)
+                .build();
+    }
+    // ..
+```
+
+In order for the `PromptChatMemoryAdvisor` to do its work, it needs to some way to correlate the request from you with a given conversation. You can do this by assigning a conversation ID on the request. Modify the `inquire` method:
+
+```java
+  @GetMapping("/{user}/assistant")
+    String inquire(@PathVariable String user, @RequestParam String question) {
+        return ai
+                .prompt()
+                .user(question)
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, user)) // new
+                .call()
+                .content();
+
+    }
+
+``` 
+
+In this instance, we're simply using the path variable from the URL to create distinct conversations. Naturally, a much more suitable approach might be to use the Spring Security authenticated `Principal#getName()` call, instead. If you have Spring Security installed, you could inject the authenticated principal as a parameter of the controller method. 
+
+
+Relaunch the program and then re-run the same HTTP interactions and this time you should find the model remembers you. NB: you can always reset the memory by deleting the data in that particular table. 
+
+Nice! If you just built a quick UI, you'd have—in effect—your own Claude Desktop. Which is not exactly what we want. Remember, we're trying to help people adopt  dog from our fictitious dog adoption agency _Pooch Palace_. We don't want people doing their homework or getting coding help from our assistant. Let's give out model a mission statement by configuring a system priompt. Change the configuration again:
+
+
+```java
+    // ..
+    AdoptionsController (PromptChatMemoryAdvisor promptChatMemoryAdvisor,
+                         ChatClient.Builder ai  ) {
+        var system = """
+                You are an AI powered assistant to help people adopt a dog from the adoption agency named Pooch Palace with locations in Rio de Janeiro, Mexico City, Seoul, Tokyo, Singapore, Paris, Mumbai, New Delhi, Barcelona, London, and San Francisco. Information about the dogs available will be presented below. If there is no information, then return a polite response suggesting we don't have any dogs available.
+                """;
+        this.ai = ai
+                .defaultSystem(system)
+                // ..
+                .build();
+    }
+    // ..
+```
+
+Let's try asking a question more on point: 
+
+```shell
+http :8080/jlong/assistant question=="do you have any neurotic dogs?"
+```
+
+We're hoping the model will know about our friend _Prancer_. It should return, alas, that it does not. And this is to be expected. After all, we haven't extended access to our SQL database to the model (yet). We could read all the database in and then just concatenate it all into the body of the request. Conceptually, assuming we have a small enough data set and a large enough token count, that would work. But it's the principle of the thing! Remember, all interactions with the model incur a token _cost_. This cost may be born in dollars and cents, such as when using hosted multitenant LLMs like Claude, or at the very least its born in complexity (CPU and GPU resource consumption) costs. Either way: we want to reduce those costs, whenever possible. 
+
+We'll read all the data from the SQL database using the newly minted `DogRepository` and then write out Spring AI `Document`s to the `VectorStore` in the constructor.
+
+```java
+    //...
+    AdoptionsController(JdbcClient db,
+                        PromptChatMemoryAdvisor promptChatMemoryAdvisor,
+                        ChatClient.Builder ai,
+                        DogRepository repository,
+                        VectorStore vectorStore) {
+
+        var count = db
+                .sql("select count(*) from vector_store")
+                .query(Integer.class)
+                .single();
+        if (count == 0) {
+            repository.findAll().forEach(dog -> {
+                var dogument = new Document("id: %s, name: %s, description: %s".formatted(
+                        dog.id(), dog.name(), dog.description()
+                ));
+                vectorStore.add(List.of(dogument));
+            });
+        }
+
+        // ... same as before 
+    }
+
+```
+
+This will use PostgresML behind the scenes to do the work. We must configure a `QuestionAnswerAdvisor` so that the `ChatClient` will know to consult the vector store for supporting documents ("doguments"?) the requests before sending the request off to the model for final analysis. Modify the definition of the `ChatClient` later on in the constructor accordingly: 
+
+```java
+
+        this.ai = ai
+                // ...
+                .defaultAdvisors(promptChatMemoryAdvisor, 
+                                 new QuestionAnswerAdvisor(vectorStore))
+                // ... 
+                .build();
+```
 

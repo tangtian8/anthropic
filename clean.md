@@ -1,4 +1,7 @@
-# Your First Spring AI 1.0 Application with Anthropic
+# Your First Spring AI 1.0 Application
+
+by Dr. Mark Pollack, Christian Tsolov, and Josh Long
+
 
 Hi, Spring fans! Spring AI is _live_ on the Spring Initializr and everywhere fine bytes might be had. Ask your doctor if AI is right for you! It's an amazing time to be a Java and Spring developer. There's never been a better time to be a Java and Spring developer, and this is doubly true in this unique AI moment. You see, 90% of what people talk about when they talk about AI engineering is just integration with models, most of which have HTTP APIs. And most of what these models take is just human-language `String`s. This is integration code, and what place for these integrations to exist than hanging off the side of your Spring-based workloads? The same workloads who business logic drives your organizations and which guard data that feeds your organization. 
 
@@ -116,7 +119,12 @@ So, basically, we can ask questions by making HTTP requests to `:8080/youruser/a
 http :8080/jlong/assistant question=="my name is Josh" 
 ```
 
-You shoudl get an effusive response. We're friends, it sounds like! Let's put that friendship to the test.
+You should get an effusive response. We're friends, it sounds like! 
+
+
+## Chat Memory 
+
+Let's put that friendship to the test.
 
 
 ```
@@ -164,7 +172,8 @@ Change the configuration for the `ChatClient`:
 In order for the `PromptChatMemoryAdvisor` to do its work, it needs to some way to correlate the request from you with a given conversation. You can do this by assigning a conversation ID on the request. Modify the `inquire` method:
 
 ```java
-  @GetMapping("/{user}/assistant")
+
+    @GetMapping("/{user}/assistant")
     String inquire(@PathVariable String user, @RequestParam String question) {
         return ai
                 .prompt()
@@ -180,7 +189,9 @@ In order for the `PromptChatMemoryAdvisor` to do its work, it needs to some way 
 In this instance, we're simply using the path variable from the URL to create distinct conversations. Naturally, a much more suitable approach might be to use the Spring Security authenticated `Principal#getName()` call, instead. If you have Spring Security installed, you could inject the authenticated principal as a parameter of the controller method. 
 
 
-Relaunch the program and then re-run the same HTTP interactions and this time you should find the model remembers you. NB: you can always reset the memory by deleting the data in that particular table. 
+Relaunch the program and then re-run the same HTTP interactions, and this time you should find the model remembers you. NB: you can always reset the memory by deleting the data in that particular table. 
+
+## System Prompts
 
 Nice! If you just built a quick UI, you'd have—in effect—your own Claude Desktop. Which is not exactly what we want. Remember, we're trying to help people adopt  dog from our fictitious dog adoption agency _Pooch Palace_. We don't want people doing their homework or getting coding help from our assistant. Let's give out model a mission statement by configuring a system priompt. Change the configuration again:
 
@@ -190,7 +201,7 @@ Nice! If you just built a quick UI, you'd have—in effect—your own Claude Des
     AdoptionsController (PromptChatMemoryAdvisor promptChatMemoryAdvisor,
                          ChatClient.Builder ai  ) {
         var system = """
-                You are an AI powered assistant to help people adopt a dog from the adoption agency named Pooch Palace with locations in Rio de Janeiro, Mexico City, Seoul, Tokyo, Singapore, Paris, Mumbai, New Delhi, Barcelona, London, and San Francisco. Information about the dogs available will be presented below. If there is no information, then return a polite response suggesting we don't have any dogs available.
+                You are an AI powered assistant to help people adopt a dog from the adoption agency named Pooch Palace with locations in Rio de Janeiro, Mexico City, Seoul, Tokyo, Singapore, New York City, Amsterdam, Paris, Mumbai, New Delhi, Barcelona, London, and San Francisco. Information about the dogs available will be presented below. If there is no information, then return a polite response suggesting we don't have any dogs available.
                 """;
         this.ai = ai
                 .defaultSystem(system)
@@ -206,9 +217,23 @@ Let's try asking a question more on point:
 http :8080/jlong/assistant question=="do you have any neurotic dogs?"
 ```
 
-We're hoping the model will know about our friend _Prancer_. It should return, alas, that it does not. And this is to be expected. After all, we haven't extended access to our SQL database to the model (yet). We could read all the database in and then just concatenate it all into the body of the request. Conceptually, assuming we have a small enough data set and a large enough token count, that would work. But it's the principle of the thing! Remember, all interactions with the model incur a token _cost_. This cost may be born in dollars and cents, such as when using hosted multitenant LLMs like Claude, or at the very least its born in complexity (CPU and GPU resource consumption) costs. Either way: we want to reduce those costs, whenever possible. 
+We're hoping the model will know about our friend _Prancer_. It will return, alas, that it does not. 
 
-We'll read all the data from the SQL database using the newly minted `DogRepository` and then write out Spring AI `Document`s to the `VectorStore` in the constructor.
+## Avoid Token Bankruptcy with Good Observability
+
+We haven't extended access to our SQL database to the model (yet). We could read all the database in and then just concatenate it all into the body of the request. Conceptually, assuming we have a small enough data set and a large enough token count, that would work. But it's the principle of the thing! Remember, all interactions with the model incur a token _cost_. This cost may be born in dollars and cents, such as when using hosted multitenant LLMs like Claude, or at the very least its born in complexity (CPU and GPU resource consumption) costs. Either way: we want to reduce those costs, whenever possible. 
+
+You can and should keep an eye on the token consumption thanks to the Spring AI integration with the Actuator module. In your `application.properties`, add the following:
+
+```properties
+management.endpoints.web.exposure.include=*
+management.endpoint.health.show-details=always
+```
+Restart the application and then drive some requests to the model. Then navigate to `localhost:8080/actuator/metrics` in your browser and you should see metrics starting with `gen_ai`, e.g.: `gen_ai.client.token.usage`. Get the details about that metric here: `localhost:8080/actuator/metrics/gen_ai.client.token.usage`. The metrics integration is powered  by the fabulous Micrometer project, which integrates with darn near every time series database under the sun, including Prometheus, Graphite, Netflix Atlas, DataDog, Dynatrace, etc. So, you could also have these metrics published to those TSDBs to help build out that all important single pane of glass experience for operations. 
+
+## Retrieval Augmented Generation (R.A.G.) with Vector Stores
+
+Read all the data from the SQL database using the newly minted `DogRepository` and then write out Spring AI `Document`s to the `VectorStore` in the constructor.
 
 ```java
     //...
@@ -236,6 +261,8 @@ We'll read all the data from the SQL database using the newly minted `DogReposit
 
 ```
 
+There's no particular scheme here. We're writing a `Document` with some string data. It doesn't matter what's in the string.
+
 This will use PostgresML behind the scenes to do the work. We must configure a `QuestionAnswerAdvisor` so that the `ChatClient` will know to consult the vector store for supporting documents ("doguments"?) the requests before sending the request off to the model for final analysis. Modify the definition of the `ChatClient` later on in the constructor accordingly: 
 
 ```java
@@ -243,8 +270,198 @@ This will use PostgresML behind the scenes to do the work. We must configure a `
         this.ai = ai
                 // ...
                 .defaultAdvisors(promptChatMemoryAdvisor, 
-                                 new QuestionAnswerAdvisor(vectorStore))
+                        new QuestionAnswerAdvisor(vectorStore))
                 // ... 
                 .build();
 ```
 
+Re-run the request asking about neurotic dogs and you should find that, indeed, there's a neurotic dog who might just be what the dogtor ordered, and his name is Prancer! Nice! 
+
+## Structured Output
+
+NB: We've been getting the response as a String, but that's no foundation on which to build an abstraction! We need a strongly typed object we can pass around our codebase.  You _could_ have the model map the return data to such a strongly-typed object, if you wanted. Suppose you had the following record: 
+
+```java
+record DogAdoptionSuggestion(int id,String name, String description) {}
+```
+
+We could use the `entity(Class<?>)` method instead of the `content()` method:
+
+```java
+//
+@GetMapping("/{user}/assistant")
+DogAdoptionSuggestion inquire (...) {
+    return ai
+            .prompt()
+            .user(..) // 
+            .entity(DogAdoptionSuggestion.class);
+}
+```
+
+You'd get a strongly typed object back instead. How? Magic! (I guess.) Anyway, you _could_ do that, but we're going to carry on with our `content()`, since after all we're building a chatbot. 
+
+## Local Tool Calling 
+So, we've been reunited with the dog of our dreams! What now? Well, the natural next step for any red-blood human being would be to want to adopt that doggo, surely! But there's scheduling to be done. Let's allow the model to integrate with our patent-pending, class-leading scheduling algorithm by giving it access to _tools_. 
+
+Add the following type to the bottom of the code page: 
+
+```java
+
+
+@Component
+class DogAdoptionScheduler {
+
+    @Tool(description = "schedule an appointment to pickup or adopt a " +
+            "dog from a Pooch Palace location")
+    String schedule(int dogId, String dogName) {
+        System.out.println("Scheduling adoption for dog " + dogName);
+        return Instant
+                .now()
+                .plus(3, ChronoUnit.DAYS)
+                .toString();
+    }
+}
+```
+
+This is just a Spring bean like any other. We're announcing that this method has been called, and then returning a date hard-coded to be three days in the future. The important bit is that we've got a method made available for consumption by the model annotated as `@Tool`s. Importantly, the tools have descriptions in human language prose that are as descriptive as possible. Remember when your mother said, "use your words!" This is what she meant! It'll help you be a better AI engineer (not to mention a better teammate, but that discussion is a totally different _Oprah_ for another day...). 
+
+Make sure to update the `ChatClient` configuration by pointing it to the tools:
+
+```java
+
+
+    AdoptionsController(
+            JdbcClient db,
+            DogAdoptionScheduler scheduler,
+            ChatClient.Builder ai,
+            DogRepository repository,
+            VectorStore vectorStore) {
+
+        // ... 
+
+        this.ai = ai
+                .defaultTools(scheduler)
+                // .. 
+                .build();
+    }
+```
+
+Now let's try the two step interaction:
+
+```shell
+http :8080/jlong/assistant question=="do you have any neurotic dogs?"
+```
+
+Once it confirms that there's a dog named Prancer, inquire about scheduling a pickup from the New York City location:
+
+```shell
+http :8080/jlong/assistant question=="fantastic. when can i schedule an appointment to pickup Prancer from the New York City location?"
+```
+
+You should see the confirmation on the console that the method was called and you should see that the date is three days in the future. Nice. 
+
+## Model Context Protocol 
+
+Already, we've opened up a _ton_ of possibilities! Spring AI is a concise and powerful component model, and Claude is a very brilliant chat model, with which we've integrated our data and our tools. Ideally, though, we should be able to consume tools in a uniform fashion, without being coupled so much to a particular programming model. In November 2025, Anthropic released an update to Claude Desktop that featured a new network protocol called Model Context Protocol (MCP). MCP provides a convenient way for the model to benefit from tools regardless of the language in which they were written.  There are two flavors of MCP: STDIO and HTTP streaming over server-sent events (SSE). 
+
+The result has been very positive! Since its launch we've witnessed a Cambrian explosion of new MCP services - . There are countles MCP sercices. There are countless directories of MCP services. And now, we're starting to see a proliferation of directories of directories of new MCP services! And it all redounds to our benefit; each MCP service is a new trick you can teach your model. There are MCP services for Spring Batch, Spring Cloud Config Server, Cloud Foundry, Heroku, AWS, Google Cloud, Azure, Microsoft Office, Github, Adobe, etc. There are MCP services that let you render 3D scenes in Blender3D. There are MCP services which in turn connect any number of other integrations and services, including those in Zapier, for example. 
+
+And now, we're going to add one more to the mix. Let's extract out the scheduling algorithm as an MCP service and reuswe it thusly. Hit the [Spring Initializr](https://start.spring.io) and select `Web` and `Model Context Protocol Server`. Choose Java 24 (or later) and Apache Maven. Name the project `scheduler`. Hit `Generate` and then open the project inside the resulting `.zip` file in your favorite IDE. 
+
+Cut and paste the `DogAdoptionScheduler` to the bottom of the new project. Add the following definition to the main class (`SchedulerApplication.java`):
+
+
+```java
+
+    @Bean
+    MethodToolCallbackProvider methodToolCallbackProvider(DogAdoptionScheduler scheduler) {
+        return MethodToolCallbackProvider
+                .builder()
+                .toolObjects(scheduler)
+                .build();
+    }
+```
+
+Change `application.properties` to ensure the new service starts on a different port.
+
+```properties
+# ... 
+server.port=8081
+```
+
+
+Start the scheduler. Return to the `adoptions` module and let's rework it to point instead to this new, remote HTTP-based MCP service.
+
+Delete all references in the code to the `DogAdoptionScheduler` . Define a bean of type `McpSyncClient` in the configuration. 
+
+```java
+    @Bean
+    McpSyncClient mcpSyncClient() {
+        var mcp = McpClient
+                .sync(HttpClientSseClientTransport.builder("http://localhost:8081").build()).build();
+        mcp.initialize();
+        return mcp;
+    }
+```
+
+Now, in the constructor, specify a tool callback, pointing to this:
+
+```java
+
+    AdoptionsController(JdbcClient db,
+                        McpSyncClient mcpSyncClient,
+                        PromptChatMemoryAdvisor promptChatMemoryAdvisor,
+                        ChatClient.Builder ai,
+                        DogRepository repository,
+                        VectorStore vectorStore) {
+        // ... 
+        this.ai = ai
+                // .. 
+                .defaultToolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClient))
+                // ..
+                .build();
+    }
+```
+
+Restart the process and ask the same two questions again and this time you should see that the MCP service ends up printing out the confirmation of the schedule, and that the proposed date is indeed still three days ahead in the future. 
+
+
+Claude Desktop has supported configuring MCP services using a `.json` configuration file since the beginning and to ease interoperability, Spring AI _also_ supports this configuration format. Here's the `.json` configuration for the GitHub MCP service, for example:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "...."
+      }
+    }
+  }
+}
+```
+
+NB: you'd need to specify your own GitHub personal access token there. It's a breeze to tell Spring AI to include that MCP definition as a tool. You would only need to add the following to the `application.properties` file, for example:
+
+```properties
+spring.ai.mcp.client.stdio.servers-configuration=classpath:/github-mcp.json
+```
+
+Now, you could ask the assistant to help you with scheduling and then have it write the proposed date to a file in GitHub, all without any intervention. Nice! 
+
+Recently, Claude Desktop added support for HTTP remote MCP services, such as our scheduler, too. You'll need to upgrade your Anthropic Account as, at least at the time of this writing, it's only available behind a Max plan. (I couldn't wait to pay!) You can repurpose this scheduler as a tool you wield directly from Claude Desktop itself. Assuming you have Claude Desktop itself installed (it works on macOS and Windows as of this writing), you'd go through the following steps to configure the remote integration.
+
+<!-- 
+todo: 
+
+make sure to add the images and wlak through the steps 
+make sure to do a the usual section on production worthy AI with graalvm, virtual threads, buildpacks, etc
+-->

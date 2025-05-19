@@ -542,4 +542,4 @@ Stand back. This might take another minute still. When it finishes, you’ll see
 This application’s so darn good; I’ll bet it’ll make headlines, just like Prancer, in no time. And when that happens, you’d be well advised to keep an eye on your system resources and - importantly - the token count. All requests to an LLM have a cost - at least one of complexity, if not dollars and cents. As we explored earlier, the Spring Boot observability story is ideal here. 
 
 ## Next Steps
-You've just built a production-worthy AI application powered by Claude, PostgreSQL, and Spring AI. I hope you'll get started today on the [Spring Initializr](https://start.spring.io)
+You've just built a production-worthy AI application powered by Claude, PostgresSQL, and Spring AI. We hope you'll get started today on the [Spring Initializr](https://start.spring.io)

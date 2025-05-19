@@ -336,9 +336,7 @@ Make sure to update the `ChatClient` configuration by pointing it to the tools:
             ChatClient.Builder ai,
             DogRepository repository,
             VectorStore vectorStore) {
-
         // ... 
-
         this.ai = ai
                 .defaultTools(scheduler)
                 // .. 
@@ -457,11 +455,46 @@ spring.ai.mcp.client.stdio.servers-configuration=classpath:/github-mcp.json
 
 Now, you could ask the assistant to help you with scheduling and then have it write the proposed date to a file in GitHub, all without any intervention. Nice! 
 
-Recently, Claude Desktop added support for HTTP remote MCP services, such as our scheduler, too. You'll need to upgrade your Anthropic Account as, at least at the time of this writing, it's only available behind a Max plan. (I couldn't wait to pay!) You can repurpose this scheduler as a tool you wield directly from Claude Desktop itself. Assuming you have Claude Desktop itself installed (it works on macOS and Windows as of this writing), you'd go through the following steps to configure the remote integration.
+## The Chatbox Is the New UX
 
-<!-- 
-todo: 
+MCP debuted in Claude Desktop, and at the time of its launch it only supported STDIO-based services on the same host. Recently, that's changed. Claude Desktop just added support for HTTP remote MCP services, such as our `scheduler`. You'll need to upgrade your Anthropic Account as, at least at the time of this writing, it's only available behind a Max plan. (for which I _could not wait_ to pay!) You can repurpose our scheduler service as a tool that you wield directly from Claude Desktop itself. Assuming you have Claude Desktop installed (it works on macOS and Windows as of this writing), you'd go through the following steps to configure the remote integration.
 
-make sure to add the images and wlak through the steps 
-make sure to do a the usual section on production worthy AI with graalvm, virtual threads, buildpacks, etc
--->
+First, you'll need top open up Claude's `Settings` screen.
+
+![first you'll need to open up Claude's `Settings` screen](images/1-claude-settings.png)
+
+Then, open up the `Integrations` section of the `Settings` screen.
+
+![then open up the `Integrations` section of the `Settings` screen](images/2-claude-settings-integrations.png)
+
+In order for you to test this service, it'll need to have a publicly available URL. Obviously, there are a ton of places you could run your application (CloudFoundry, AWS, Google Cloud, Azure, etc.), but to make development a little easier, may we recommend `ngrok`? It'll make your local service(s) available on a dynamic public URL. We had to pay to upgrade to get it to stop showing an interstitial page. It was maybe $8 USD, if memory serves, which isn't  too bad. Run:
+
+```shell
+ngrok http 8081
+```
+
+This will set up a tunnel to whatever service is running on port `8081`, allowing you to access it via a dynamic URL printed to the console.  
+
+![the `ngrok` dynamic URL](images/3-ngrok.png)
+
+Now we need to tell Claude Desktop about the service back in the `Integrations` section of the `Settings` page. 
+
+![then open up the `Integrations` section of the `Settings` screen](images/4-claude-settings-integrations-new-integration.png)
+
+Hit `Add` and then `Connect` on the main screen. You should see confirmation of the connection between Claude Desktop and the `scheduler` service on port 8081 in the `ngrok` console.
+
+![you should see confirmation of the connection between Claude Desktop and the `scheduler` service on port 8081 in the `ngrok` console](images/5-ngrok-connection.png)
+
+Ask Claude Desktop the same question as above: "when can i schedule an appointment to pickup Prancer from the New York City location?" In our run, it also asked us to specify  the ID of the dog, which we did: `45`. It'll eventually prompt you to permit it to invoke the tool you just gave it: 
+
+![confirm permissions for Claude Desktop](images/6-confirm-permissions-for-dog-adoption-scheduler.png)
+
+Oblige it and then off it goes! 
+
+![confirm permissions for Claude Desktop](images/7-end-to-end-in-claude-desktop.png)
+
+It should give you a date three days hence. Neat! 
+
+## Production Worthy AI 
+
+

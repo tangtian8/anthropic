@@ -79,7 +79,7 @@ We'll need to talk to the just-created `dog` table, so we've got a Spring Data J
 interface DogRepository extends ListCrudRepository<Dog, Integer> {
 }
 
-record Dog(@Id int id, String name, String owner, String description {
+record Dog(@Id int id, String name, String owner, String description ){
 }
 
 ```

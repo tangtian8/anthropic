@@ -34,11 +34,11 @@ And that's just what we're going to do! We're going to build an application to s
 "Ok, I’ve tried. I’ve tried for the last several months to post this dog for adoption and make him sound...palatable. The problem is, he’s just not. There’s not a very big market for neurotic, man-hating, animal-hating, children-hating dogs that look like gremlins. But I have to believe there’s someone out there for Prancer, because I am tired and so is my family. Every day we live in the grips of the demonic Chihuahua hellscape he has created in our home."
 
 ## The Pre-requisites
-Sounds like quite a handful! But even spicy dogs deserve loving homes. So let's build a service to unite people with the dogs of their dreams (or nightmares?) Hit the [Spring Initializr](https://start.spring.io) and add the following dependencies to your project: `PgVector`, `GraalVM`, `Actuator`, `Data JDBC`, `JDBC Chat Memory`, `PostgresML`, `Devtools`, and `Web`. Choose Java 24 (or later) and Apache Maven as the build tool. (Strictly speaking, there's no reason you could not use Gradle here, but the example will be in terms of Apache Maven) Make sure the artifact is named `adoptions`.
+Sounds like quite a handful! But even spicy dogs deserve loving homes. So let's build a service to unite people with the dogs of their dreams (or nightmares?) Hit the [Spring Initializr](https://start.spring.io) and add the following dependencies to your project: `PgVector`, `GraalVM Native Support`, `Actuator`, `Data JDBC`, `JDBC Chat Memory`, `PostgresML`, `Devtools`, and `Web`. Choose Java 24 (or later) and Apache Maven as the build tool. (Strictly speaking, there's no reason you could not use Gradle here, but the example will be in terms of Apache Maven) Make sure the artifact is named `adoptions`.
 
 Make sure that in  your `pom.xml`, you've also got: `org.springframework.ai`:`spring-ai-advisors-vector-store`.
 
-Some of these things are familiar. `Data JDBC` just brings in Spring Data JDBC, which is just an ORM mapper that allows you to talk to a SQL database. `Web` brings in Spring MVC. `Actuator` brings in Spring Boot's observability stack, underpinned in part by [Micrometer](https://micrometer.io). `Devtools` is a development-time concern, allowing you to do live-reloads as you make changes. It'll automatically reload the code each time you do a "Save" operation in Visual Studio Code or Eclipse, and it'll automatically kick in each time you alt-tab away from IntelliJ IDEA. `GraalVM` brings in support for the OpenJDK fork, GraalVM, which provides, among other things, an ahead-of-time compiler (AOT) that produces lightweight, lighting fast binaries. 
+Some of these things are familiar. `Data JDBC` just brings in Spring Data JDBC, which is just an ORM mapper that allows you to talk to a SQL database. `Web` brings in Spring MVC. `Actuator` brings in Spring Boot's observability stack, underpinned in part by [Micrometer](https://micrometer.io). `Devtools` is a development-time concern, allowing you to do live-reloads as you make changes. It'll automatically reload the code each time you do a "Save" operation in Visual Studio Code or Eclipse, and it'll automatically kick in each time you alt-tab away from IntelliJ IDEA. `GraalVM Native Support` brings in support for the OpenJDK fork, GraalVM, which provides, among other things, an ahead-of-time compiler (AOT) that produces lightweight, lighting fast binaries. 
 
 We said that Spring Data JDBC will make it easy to connect to a SQL database, but which one? In our application, we'll be using PostgreSQL, but not just vanilla PostgresSQL! We're going to load two very important extensions: `vector` and `postgresml`. The `vector` plugin allows PostgresSQL to act as a _vector store_. You'll need to turn arbitrary (text, image, audio) data into _embeddings_ before they can be persisted. For this, you'll need an embedding model. `PostgresML` provides that capability here. These concerns are usually orthaganol—it's just very convenient that PostgreSQL can do both chores. A big part of building a Spring AI application is deciding upon which vector store, embedding model, and chat model you will use.   
 
@@ -362,9 +362,9 @@ You should see the confirmation on the console that the method was called and yo
 
 Already, we've opened up a _ton_ of possibilities! Spring AI is a concise and powerful component model, and Claude is a very brilliant chat model, with which we've integrated our data and our tools. Ideally, though, we should be able to consume tools in a uniform fashion, without being coupled so much to a particular programming model. In November 2025, Anthropic released an update to Claude Desktop that featured a new network protocol called Model Context Protocol (MCP). MCP provides a convenient way for the model to benefit from tools regardless of the language in which they were written.  There are two flavors of MCP: STDIO and HTTP streaming over server-sent events (SSE). 
 
-The result has been very positive! Since its launch we've witnessed a Cambrian explosion of new MCP services - . There are countles MCP sercices. There are countless directories of MCP services. And now, we're starting to see a proliferation of directories of directories of new MCP services! And it all redounds to our benefit; each MCP service is a new trick you can teach your model. There are MCP services for Spring Batch, Spring Cloud Config Server, Cloud Foundry, Heroku, AWS, Google Cloud, Azure, Microsoft Office, Github, Adobe, etc. There are MCP services that let you render 3D scenes in Blender3D. There are MCP services which in turn connect any number of other integrations and services, including those in Zapier, for example. 
+The result has been very positive! Since its launch we've witnessed a Cambrian explosion of new MCP services - . There are countless MCP sercices. There are countless directories of MCP services. And now, we're starting to see a proliferation of directories of directories of new MCP services! And it all redounds to our benefit; each MCP service is a new trick you can teach your model. There are MCP services for Spring Batch, Spring Cloud Config Server, Cloud Foundry, Heroku, AWS, Google Cloud, Azure, Microsoft Office, Github, Adobe, etc. There are MCP services that let you render 3D scenes in Blender3D. There are MCP services which in turn connect any number of other integrations and services, including those in Zapier, for example. 
 
-And now, we're going to add one more to the mix. Let's extract out the scheduling algorithm as an MCP service and reuswe it thusly. Hit the [Spring Initializr](https://start.spring.io) and select `Web` and `Model Context Protocol Server`. Choose Java 24 (or later) and Apache Maven. Name the project `scheduler`. Hit `Generate` and then open the project inside the resulting `.zip` file in your favorite IDE. 
+And now, we're going to add one more to the mix. Let's extract out the scheduling algorithm as an MCP service and reuse it thusly. Hit the [Spring Initializr](https://start.spring.io) and select `GraalVM Native Support`, `Web` and `Model Context Protocol Server`. Choose Java 24 (or later) and Apache Maven. Name the project `scheduler`. Hit `Generate` and then open the project inside the resulting `.zip` file in your favorite IDE. 
 
 Cut and paste the `DogAdoptionScheduler` to the bottom of the new project. Add the following definition to the main class (`SchedulerApplication.java`):
 
@@ -497,4 +497,49 @@ It should give you a date three days hence. Neat!
 
 ## Production Worthy AI 
 
+Now, it’s time to turn our eyes toward production.
 
+### Security
+It’s trivial to use Spring Security to lock down this web application. You could use the authenticated `Principal#getName` to use as the conversation ID too. What about the data stored in the database, like the conversations? Well, you have a few options here. Many databases support encryption at rest as  a passive capability. 
+
+### Scalability
+We want this code to be scalable. Remember, each time you make an HTTP request to a model (or many relational databases), you’re doing _blocking IO_. IO that sits on a thread and makes that thread unavailable to any other demand in the system until the IO has completed. This is a waste of a perfectly good thread! Threads aren't meant to just sit idle, waiting. Java 21 gives us **virtual threads**, which - for sufficiently IO bound services - can dramatically improve scalability. That’s why you should (almost?) always set up `spring.threads.virtual.enabled=true` in the `application.properties` file.
+
+### GraalVM Native Images
+GraalVM is an AOT compiler, led by Oracle, that you can consume through the GraalVM Community Edition open source project or through the very powerful (and free) Oracle GraalVM distribution. If you're using [SDKMAN](https://sdkman.io), it's trivial to install either: `sdk install java 24-graalce` or `sdk install java 24-graal`. Then, make sure to use one of those JDK distributions, e.g.: `sdk use java 24-graal` or even make it your default system-wide `sdk default java 24-graalce`.
+
+Remember, we configured both of our Spring AI services with `GraalVM Native Support`, which adds a build plugin which will allow us to create turn this application into an operating system and architecture-specific native binary:
+
+```shell
+./mvnw -DskipTests -Pnative native:compile
+```
+
+Stand back. You might even have time enough to get a cup of coffee.. This takes a minute or so on most machines, but once it’s done, you can run the binary with ease. 
+
+```shell
+./target/scheduler
+```
+
+This program will start up in a fraction of the time that it did on the JVM. On my machine it starts up in less than a tenth of a second. Even better, you should observe that the application takes a very small fraction of the RAM it would've otherwise taken on the JVM. When the application starts up, it prints out its process identifier (PID) towards the top of the logs. Note that then run: 
+
+```shell
+ps -o rss <PID>
+```
+
+The number is measured in kilobytes, do divide by 1,000 to get the number inf megabytes. Whatever number you get, I'm sure you will recognize it as being far lower than what you might've gotten on the JVM.
+
+### Docker 
+
+That’s all very well and good, you might day, but I need to get this running on my cloud platform and that means getting it into the shape of a Docker image. Easy!
+
+```shell
+./mvnw -DskipTests -Pnative spring-boot:build-image
+```
+
+Stand back. This might take another minute still. When it finishes, you’ll see its printed out the name of the Docker image that’s been generated. You can run it, remembering to override the hosts and ports of things it would've referenced on your host. Interestingly: we’re on macOS, and amazingly, this application when run in a macOS virtual machine emulating Linux, runs even faster—and right from the jump, too!—then it would’ve on macOS directly! Amazing!
+
+### Observability
+This application’s so darn good; I’ll bet it’ll make headlines, just like Prancer, in no time. And when that happens, you’d be well advised to keep an eye on your system resources and - importantly - the token count. All requests to an LLM have a cost - at least one of complexity, if not dollars and cents. As we explored earlier, the Spring Boot observability story is ideal here. 
+
+## Next Steps
+You've just built a production-worthy AI application powered by Claude, PostgreSQL, and Spring AI. I hope you'll get started today on the [Spring Initializr](https://start.spring.io)

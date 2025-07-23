@@ -1,5 +1,5 @@
 INSERT INTO dog (id, name, description)
-VALUES (97, 'Rocky', 'A brown Chihuahua known for being protective.'),
+VALUES (97, 'Rocky', 'A brown Chihuahua known for being protective11.'),
        (87, 'Bailey', 'A tan Dachshund known for being playful.'),
        (89, 'Charlie', 'A black Bulldog known for being curious.'),
        (67, 'Cooper', 'A tan Boxer known for being affectionate.'),

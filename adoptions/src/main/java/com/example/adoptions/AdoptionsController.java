@@ -59,6 +59,7 @@ public class AdoptionsController {
 		return ai
 				.prompt()
 				.user(question)
+				.tools(new MyTools())
 				.advisors(a -> {
 					a.param(ChatMemory.CONVERSATION_ID, user);
 				})

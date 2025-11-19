@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: meeting-room-booking
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/tangtian
+    username: dhis2
+    password: dhis2
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  ai:
+    openai:
+      # DeepSeek使用OpenAI兼容的API
+      base-url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY} # sk-3067c343ee2c4bd7a87d0ad48022ef13
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.7
+          max-tokens: 2000
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.example: DEBUG
+    org.springframework.ai: DEBUG

@@ -66,9 +66,9 @@ export DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
 ```yaml
 spring:
-  ai:
-    openai:
-      api-key: your_deepseek_api_key_here
+   ai:
+      openai:
+         api-key: your_deepseek_api_key_here
 ```
 
 ### 4. 启动后端
@@ -115,24 +115,55 @@ X-Session-Id: <session_id> (可选，用于保持对话上下文)
 **Request Body:**
 ```json
 {
-  "message": "我想预订明天下午2点到4点的会议室A，讨论项目进展，我是张三"
+   "message": "我想预订明天下午2点到4点的会议室A，讨论项目进展，我是张三"
 }
 ```
 
 **Response:**
 ```json
 {
-  "response": "好的，我已经为您预订了会议室A...",
-  "bookingInfo": {
-    "id": 1,
-    "roomName": "会议室A",
-    "title": "项目进展讨论",
-    "organizer": "张三",
-    "startTime": "2025-11-15 14:00:00",
-    "endTime": "2025-11-15 16:00:00",
-    "status": "CONFIRMED"
-  }
+   "response": "好的，我已经为您预订了会议室A...",
+   "bookingInfo": {
+      "id": 1,
+      "roomName": "会议室A",
+      "title": "项目进展讨论",
+      "organizer": "张三",
+      "startTime": "2025-11-15 14:00:00",
+      "endTime": "2025-11-15 16:00:00",
+      "status": "CONFIRMED"
+   }
 }
+```
+
+### Room Status API
+
+**GET** `/api/rooms/status`
+
+获取指定日期的会议室状态
+
+**Query Parameters:**
+```
+date: YYYY-MM-DD (可选，默认为当天)
+```
+
+**Response:**
+```json
+[
+  {
+    "name": "会议室A",
+    "capacity": 10,
+    "location": "3楼东侧",
+    "facilities": "投影仪,白板,视频会议",
+    "status": "partial",
+    "schedules": [
+      {
+        "time": "10:00-12:00",
+        "title": "产品评审会议",
+        "organizer": "张三"
+      }
+    ]
+  }
+]
 ```
 
 ## 🎨 使用示例
@@ -146,7 +177,7 @@ X-Session-Id: <session_id> (可选，用于保持对话上下文)
 - 时间：2025年11月15日 14:00-16:00
 - 组织者：张三
 - 参会人数：10人
-预订已确认，预订编号：#12345"
+  预订已确认，预订编号：#12345"
 
 ### 示例对话 2：信息补充
 
@@ -226,7 +257,30 @@ spring:
           model: deepseek-chat
           temperature: 0.7
           max-tokens: 2000
+
+# 安全配置（可根据需要调整）
+app:
+  security:
+    max-conversations-per-session: 10  # 每个会话最多10次对话
+    max-requests-per-minute: 20        # 每IP每分钟最多20次请求
+    max-requests-per-hour: 100         # 每IP每小时最多100次请求
+    ban-threshold: 50                  # 1分钟内超过50次请求将被封禁
+    ban-duration-minutes: 60           # 封禁时长60分钟
 ```
+
+### 配置说明
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| max-conversations-per-session | 10 | 每个会话最多对话次数，超过需开启新会话 |
+| max-requests-per-minute | 20 | 每IP每分钟最多请求数（令牌桶算法） |
+| max-requests-per-hour | 100 | 每IP每小时最多请求数 |
+| ban-threshold | 50 | 异常检测阈值，1分钟内超过此值将封禁IP |
+| ban-duration-minutes | 60 | IP封禁时长（分钟） |
+
+### 查看当前配置
+
+访问 `http://localhost:8080/api/config` 可以查看当前生效的配置。
 
 ## 🚀 部署建议
 
@@ -262,9 +316,9 @@ VALUES ('会议室D', 15, '5楼', '投影仪,白板,视频会议');
 @Bean
 @Description("查询可用会议室")
 public Function<QueryRequest, QueryResponse> queryAvailableRooms() {
-    return request -> {
-        // 实现逻辑
-    };
+   return request -> {
+      // 实现逻辑
+   };
 }
 ```
 

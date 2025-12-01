@@ -31,6 +31,20 @@ spring:
 server:
   port: 8080
 
+# 安全配置
+app:
+  security:
+    # 每个会话最大对话次数
+    max-conversations-per-session: 10
+    # 每分钟最大请求数（每IP）
+    max-requests-per-minute: 20
+    # 每小时最大请求数（每IP）
+    max-requests-per-hour: 100
+    # IP封禁阈值（1分钟内请求次数）
+    ban-threshold: 50
+    # IP封禁时长（分钟）
+    ban-duration-minutes: 60
+
 logging:
   level:
     com.example: DEBUG

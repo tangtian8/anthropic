@@ -5,11 +5,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 import top.tangtian.meetingschedule.dto.ChatResponse;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author tangtian
@@ -20,27 +29,35 @@ import java.time.format.DateTimeFormatter;
 @Slf4j
 public class AIService {
 
+
 	private final ChatClient.Builder chatClientBuilder;
-	private final InMemoryChatMemory chatMemory = new InMemoryChatMemory();
+
+	// 自定义会话历史管理，限制历史消息数量
+	private final Map<String, List<Message>> sessionHistory = new ConcurrentHashMap<>();
+
+	// 最大保留的历史消息轮数（一问一答算一轮）
+	private static final int MAX_HISTORY_ROUNDS = 3;
 
 	public ChatResponse chat(String sessionId, String userMessage) {
-		log.info("处理用户消息: {}", userMessage);
-
-		String systemPrompt = buildSystemPrompt();
-
-		ChatClient chatClient = chatClientBuilder
-				.defaultSystem(systemPrompt)
-				.defaultFunctions("bookMeetingRoom")
-				.defaultAdvisors(new MessageChatMemoryAdvisor(chatMemory, sessionId, 10))
-				.build();
+		log.info("处理用户消息 - Session: {}, Message: {}", sessionId, userMessage);
 
 		try {
-			String response = chatClient.prompt()
-					.user(userMessage)
+			// 构建消息列表
+			List<Message> messages = buildMessages(sessionId, userMessage);
+
+			// 创建ChatClient并调用
+			ChatClient chatClient = chatClientBuilder
+					.defaultFunctions("bookMeetingRoom")
+					.build();
+
+			String response = chatClient.prompt(new Prompt(messages))
 					.call()
 					.content();
 
 			log.info("AI响应: {}", response);
+
+			// 保存历史（限制数量）
+			saveHistory(sessionId, userMessage, response);
 
 			return ChatResponse.builder()
 					.response(response)
@@ -52,6 +69,49 @@ public class AIService {
 					.response("抱歉，处理您的请求时出现错误: " + e.getMessage())
 					.build();
 		}
+	}
+
+	private List<Message> buildMessages(String sessionId, String userMessage) {
+		List<Message> messages = new ArrayList<>();
+
+		// 1. 添加系统提示
+		messages.add(new SystemMessage(buildSystemPrompt()));
+
+		// 2. 添加历史消息（有限制）
+		List<Message> history = sessionHistory.getOrDefault(sessionId, new ArrayList<>());
+		messages.addAll(history);
+
+		// 3. 添加当前用户消息
+		messages.add(new UserMessage(userMessage));
+
+		log.debug("构建消息列表 - 系统提示1条, 历史{}条, 当前1条", history.size());
+
+		return messages;
+	}
+
+	private void saveHistory(String sessionId, String userMessage, String assistantResponse) {
+		List<Message> history = sessionHistory.computeIfAbsent(sessionId, k -> new ArrayList<>());
+
+		// 添加本轮对话
+		history.add(new UserMessage(userMessage));
+		history.add(new AssistantMessage(assistantResponse));
+
+		// 限制历史数量（保留最近N轮对话）
+		int maxMessages = MAX_HISTORY_ROUNDS * 2; // 每轮2条消息
+		while (history.size() > maxMessages) {
+			history.remove(0); // 移除最早的消息
+			history.remove(0); // 移除配对的消息
+		}
+
+		log.debug("会话 {} 历史消息数: {}", sessionId, history.size());
+	}
+
+	/**
+	 * 清除会话历史
+	 */
+	public void clearHistory(String sessionId) {
+		sessionHistory.remove(sessionId);
+		log.info("已清除会话 {} 的历史", sessionId);
 	}
 
 	private String buildSystemPrompt() {
@@ -68,30 +128,20 @@ public class AIService {
             4. 大会议厅 - 容纳50人，位于1楼，设施：投影仪、音响系统、舞台、视频会议
             
             你的任务:
-            1. 理解用户的预订需求（会议室、时间、人数等）
-            2. 如果信息不完整，友好地询问缺失的信息
-            3. 当获得所有必要信息后，使用bookMeetingRoom工具完成预订
-            4. 将用户提供的相对时间转换为具体时间（如"明天下午2点"转为具体日期时间）
-            5. 确认预订详情并告知用户结果
+            1. 理解用户的预订需求
+            2. 如果信息不完整，简洁地询问缺失信息
+            3. 当获得所有必要信息后，调用bookMeetingRoom工具完成预订
+            4. 将相对时间转换为具体时间（如"明天下午2点"）
             
-            必需信息:
-            - 会议室名称（从上面4个选项中选择）
-            - 会议主题
-            - 组织者姓名
-            - 开始时间（格式: yyyy-MM-dd HH:mm:ss）
-            - 结束时间（格式: yyyy-MM-dd HH:mm:ss）
+            必需信息: 会议室名称、会议主题、组织者姓名、开始时间、结束时间
+            可选信息: 参会人数、会议描述
             
-            可选信息:
-            - 参会人数
-            - 会议描述
+            时间格式: yyyy-MM-dd HH:mm:ss
             
-            注意事项:
-            - 时间格式必须是: yyyy-MM-dd HH:mm:ss
-            - 不能预订过去的时间
-            - 结束时间必须晚于开始时间
-            - 根据参会人数推荐合适的会议室
-            
-            保持友好、专业的语气，提供清晰的确认信息。
+            注意:
+            - 回复要简洁，不要重复之前说过的内容
+            - 不要列出所有会议室信息，除非用户询问
+            - 预订成功后只需确认关键信息
             """, currentTime);
 	}
 }

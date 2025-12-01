@@ -250,6 +250,58 @@
             opacity: 0.9;
         }
 
+        .session-info {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #remainingCount {
+            font-size: 13px;
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 15px;
+        }
+
+        .new-session-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .new-session-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .session-expired {
+            background: #ff5252;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-radius: 10px;
+            margin: 10px 20px;
+        }
+
+        .session-expired button {
+            background: white;
+            color: #ff5252;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -432,6 +484,10 @@
         <div class="chat-header">
             <h1>💬 智能预订助手</h1>
             <p>支持未来7天预订，用自然语言告诉我您的需求</p>
+            <div class="session-info">
+                <span id="remainingCount">剩余对话次数: 10/10</span>
+                <button class="new-session-btn" onclick="startNewSession()">🔄 新会话</button>
+            </div>
         </div>
 
         <div class="chat-container" id="chatContainer">
@@ -463,11 +519,95 @@
 <script>
     const API_URL = 'http://localhost:8080/api/chat';
     const ROOMS_STATUS_API = 'http://localhost:8080/api/rooms/status';
+    const MAX_CONVERSATIONS = 10;
     let sessionId = generateSessionId();
     let selectedDate = new Date();
+    let remainingCount = MAX_CONVERSATIONS;
 
     function generateSessionId() {
         return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    function updateRemainingDisplay() {
+        const el = document.getElementById('remainingCount');
+        el.textContent = `剩余对话次数: ${remainingCount}/${MAX_CONVERSATIONS}`;
+
+        if (remainingCount <= 3) {
+            el.style.background = 'rgba(255, 82, 82, 0.8)';
+        } else {
+            el.style.background = 'rgba(255,255,255,0.2)';
+        }
+    }
+
+    async function startNewSession() {
+        if (confirm('开启新会话将清空当前对话记录，确定吗？')) {
+            // 调用后端重置会话
+            try {
+                await fetch('http://localhost:8080/api/session/reset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-Id': sessionId
+                    }
+                });
+            } catch (e) {
+                console.log('重置会话请求失败，继续本地重置');
+            }
+
+            // 生成新的sessionId
+            sessionId = generateSessionId();
+            remainingCount = MAX_CONVERSATIONS;
+
+            // 清除localStorage中的旧会话
+            localStorage.removeItem('meetingSessionId');
+            localStorage.removeItem('meetingRemaining');
+
+            updateRemainingDisplay();
+
+            // 清空对话
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        您好！我是智能会议室预订助手。<br><br>
+                        📅 支持预订未来7天的会议室<br>
+                        📊 左侧可以切换日期查看各会议室状态<br><br>
+                        请告诉我您的预订需求，例如：<br>
+                        "我想预订明天下午2点到4点的会议室A，组织团队会议，预计10人参加，我是张三"
+                    </div>
+                </div>
+            `;
+
+            // 移除过期提示
+            const expiredEl = document.getElementById('sessionExpired');
+            if (expiredEl) expiredEl.remove();
+
+            // 启用输入
+            document.getElementById('userInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+        }
+    }
+
+    function showSessionExpired() {
+        const chatContainer = document.getElementById('chatContainer');
+
+        // 检查是否已经显示
+        if (document.getElementById('sessionExpired')) return;
+
+        const expiredDiv = document.createElement('div');
+        expiredDiv.id = 'sessionExpired';
+        expiredDiv.className = 'session-expired';
+        expiredDiv.innerHTML = `
+            ⚠️ 本次会话对话次数已用完<br>
+            <small>每个会话最多支持 ${MAX_CONVERSATIONS} 次对话</small>
+            <button onclick="startNewSession()">开启新会话</button>
+        `;
+        chatContainer.appendChild(expiredDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // 禁用输入
+        document.getElementById('userInput').disabled = true;
+        document.getElementById('sendBtn').disabled = true;
     }
 
     function formatDate(date) {
@@ -657,12 +797,38 @@
                 body: JSON.stringify({ message: message })
             });
 
-            if (!response.ok) {
-                throw new Error('网络请求失败');
+            const data = await response.json();
+
+            console.log('API响应:', data); // 调试日志
+
+            // 处理会话过期
+            if (response.status === 429 || data.sessionExpired) {
+                remainingCount = 0;
+                updateRemainingDisplay();
+                showSessionExpired();
+                return;
             }
 
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || '网络请求失败');
+            }
+
             addMessage(data.response, false);
+
+            // 更新剩余次数 - 从服务器获取
+            if (typeof data.remainingCount === 'number') {
+                remainingCount = data.remainingCount;
+            } else {
+                // 如果服务器没返回，本地递减
+                remainingCount = Math.max(0, remainingCount - 1);
+            }
+            console.log('剩余次数:', remainingCount); // 调试日志
+            updateRemainingDisplay();
+
+            // 检查是否用完
+            if (remainingCount <= 0) {
+                showSessionExpired();
+            }
 
             // 如果预订成功，刷新会议室状态
             if (data.bookingInfo) {
@@ -682,10 +848,26 @@
     // 初始化
     initializeDateSelector();
     updateCurrentTime();
+    updateRemainingDisplay();
     setInterval(updateCurrentTime, 1000);
     loadRoomStatus();
     setInterval(loadRoomStatus, 60000); // 每分钟自动刷新一次
     document.getElementById('userInput').focus();
+
+    // 保存sessionId到localStorage以便页面刷新时恢复
+    const savedSession = localStorage.getItem('meetingSessionId');
+    const savedRemaining = localStorage.getItem('meetingRemaining');
+    if (savedSession && savedRemaining) {
+        sessionId = savedSession;
+        remainingCount = parseInt(savedRemaining) || MAX_CONVERSATIONS;
+        updateRemainingDisplay();
+    }
+
+    // 在页面关闭前保存
+    window.addEventListener('beforeunload', function() {
+        localStorage.setItem('meetingSessionId', sessionId);
+        localStorage.setItem('meetingRemaining', remainingCount.toString());
+    });
 </script>
 </body>
 </html>
